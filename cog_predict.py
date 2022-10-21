@@ -41,7 +41,7 @@ class Predictor(cog.Predictor):
             "ViT-B/32", device=self.device, jit=False
         )
 
-        self.graph = tf.get_default_graph()
+        self.graph = tf.compat.v1.get_default_graph()
         gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.333)
         self.sess = tf.compat.v1.Session(
             graph=self.graph, config=tf.compat.v1.ConfigProto(gpu_options=gpu_options)

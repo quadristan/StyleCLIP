@@ -55,7 +55,7 @@ class Optimizer:
         self.learning_rate          = learning_rate
         self.minibatch_multiplier   = minibatch_multiplier
         self.id                     = self.name.replace("/", ".")
-        self.scope                  = tf.get_default_graph().unique_name(self.id)
+        self.scope                  = tf.compat.v1.get_default_graph().unique_name(self.id)
         self.optimizer_class        = util.get_obj_by_name(tf_optimizer)
         self.optimizer_kwargs       = dict(kwargs)
         self.use_loss_scaling       = use_loss_scaling

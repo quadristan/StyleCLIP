@@ -86,7 +86,7 @@ class Network:
 
         # Choose TensorFlow name scope.
         with tf.name_scope(""):
-            scope = tf.get_default_graph().unique_name(name, mark_as_used=True)
+            scope = tf.compat.v1.get_default_graph().unique_name(name, mark_as_used=True)
 
         # Query current TensorFlow device.
         with tfutil.absolute_name_scope(scope), tf.control_dependencies(None):
@@ -139,7 +139,7 @@ class Network:
         # Override scope and device, and ignore surrounding control dependencies.
         with tfutil.absolute_variable_scope(self.scope, reuse=False), tfutil.absolute_name_scope(self.scope), tf.device(self.device), tf.control_dependencies(None):
             assert tf.get_variable_scope().name == self.scope
-            assert tf.get_default_graph().get_name_scope() == self.scope
+            assert tf.compat.v1.get_default_graph().get_name_scope() == self.scope
 
             # Create input templates.
             self._input_templates = []
@@ -643,7 +643,7 @@ class Network:
         _ = self.output_templates  # ensure that the template graph has been created
         include_prefix = self.scope + "/"
         exclude_prefix = include_prefix + "_"
-        ops = tf.get_default_graph().get_operations()
+        ops = tf.compat.v1.get_default_graph().get_operations()
         ops = [op for op in ops if op.name.startswith(include_prefix)]
         ops = [op for op in ops if not op.name.startswith(exclude_prefix)]
         return ops

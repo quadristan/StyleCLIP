@@ -188,7 +188,7 @@ def init_uninitialized_vars(target_vars: List[tf.Variable] = None) -> None:
             assert is_tf_expression(var)
 
             try:
-                tf.get_default_graph().get_tensor_by_name(var.name.replace(":0", "/IsVariableInitialized:0"))
+                tf.compat.v1.get_default_graph().get_tensor_by_name(var.name.replace(":0", "/IsVariableInitialized:0"))
             except KeyError:
                 # Op does not exist => variable may be uninitialized.
                 test_vars.append(var)
@@ -214,7 +214,7 @@ def set_vars(var_to_value_dict: dict) -> None:
         assert is_tf_expression(var)
 
         try:
-            setter = tf.get_default_graph().get_tensor_by_name(var.name.replace(":0", "/setter:0"))  # look for existing op
+            setter = tf.compat.v1.get_default_graph().get_tensor_by_name(var.name.replace(":0", "/setter:0"))  # look for existing op
         except KeyError:
             with absolute_name_scope(var.name.split(":")[0]):
                 with tf.control_dependencies(None):  # ignore surrounding control_dependencies
