@@ -163,7 +163,7 @@ class Optimizer:
         # Check for no-op.
         if allow_no_op and len(self._devices) == 0:
             with tfutil.absolute_name_scope(self.scope):
-                return tf.no_op(name='TrainingOp')
+                return tf.compat.v1.no_op(name='TrainingOp')
 
         # Clean up gradients.
         for device_idx, device in enumerate(self._devices.values()):
@@ -236,14 +236,14 @@ class Optimizer:
                 # No overflow => apply gradients.
                 all_ok = tf.reduce_all(tf.stack([acc_ok] + [tf.reduce_all(tf.is_finite(g)) for g in device.grad_acc.values()]))
                 apply_op = lambda: device.optimizer.apply_gradients([(tf.cast(grad, var.dtype), var) for var, grad in device.grad_acc.items()])
-                all_ops.append(tf.cond(all_ok, apply_op, tf.no_op))
+                all_ops.append(tf.cond(all_ok, apply_op, tf.compat.v1.no_op))
 
                 # Adjust loss scaling.
                 if self.use_loss_scaling:
                     ls_inc_op = lambda: tf.assign_add(device.loss_scaling_var, self.loss_scaling_inc)
                     ls_dec_op = lambda: tf.assign_sub(device.loss_scaling_var, self.loss_scaling_dec)
                     ls_update_op = lambda: tf.group(tf.cond(all_ok, ls_inc_op, ls_dec_op))
-                    all_ops.append(tf.cond(acc_ok, ls_update_op, tf.no_op))
+                    all_ops.append(tf.cond(acc_ok, ls_update_op, tf.compat.v1.no_op))
 
                 # Last device => report statistics.
                 if device_idx == len(self._devices) - 1:

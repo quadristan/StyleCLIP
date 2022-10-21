@@ -90,7 +90,7 @@ class Network:
 
         # Query current TensorFlow device.
         with tfutil.absolute_name_scope(scope), tf.control_dependencies(None):
-            device = tf.no_op(name="_QueryDevice").device
+            device = tf.compat.v1.no_op(name="_QueryDevice").device
 
         # Immutable state.
         self._name                  = name

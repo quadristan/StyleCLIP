@@ -99,7 +99,7 @@ def autosummary(name: str, value: TfExpressionEx, passthru: TfExpressionEx = Non
     if tfutil.is_tf_expression(value):
         with tf.name_scope("summary_" + name_id), tf.device(value.device):
             condition = tf.convert_to_tensor(condition, name='condition')
-            update_op = tf.cond(condition, lambda: tf.group(_create_var(name, value)), tf.no_op)
+            update_op = tf.cond(condition, lambda: tf.group(_create_var(name, value)), tf.compat.v1.no_op)
             with tf.control_dependencies([update_op]):
                 return tf.identity(value if passthru is None else passthru)
 
