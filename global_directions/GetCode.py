@@ -42,7 +42,7 @@ def SelectName(layer_name,suffix):
 
 def GetSNames(suffix):
     #get style tensor name 
-    with tf.Session() as sess:
+    with tf.compat.v1.Session() as sess:
         op = sess.graph.get_operations()
     layers=[m.values() for m in op]
     
@@ -131,7 +131,7 @@ def GetS(dataset_name,num_img):
     tmp='./npy/'+dataset_name+'/W.npy'
     dlatents=np.load(tmp)[:num_img]
     
-    with tf.Session() as sess:
+    with tf.compat.v1.Session() as sess:
         init = tf.global_variables_initializer()
         sess.run(init)
         

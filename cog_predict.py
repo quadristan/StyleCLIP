@@ -43,8 +43,8 @@ class Predictor(cog.Predictor):
 
         self.graph = tf.get_default_graph()
         gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.333)
-        self.sess = tf.Session(
-            graph=self.graph, config=tf.ConfigProto(gpu_options=gpu_options)
+        self.sess = tf.compat.v1.Session(
+            graph=self.graph, config=tf.compat.v1.ConfigProto(gpu_options=gpu_options)
         )
 
         self.experiment_args = {"model_path": "e4e_ffhq_encode.pt"}

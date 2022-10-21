@@ -26,7 +26,7 @@ _collective_ops_group_key       = 831766147
 _collective_ops_instance_key    = 436340067
 
 class Optimizer:
-    """A Wrapper for tf.train.Optimizer.
+    """A Wrapper for tf.compat.v1.train.Optimizer.
 
     Automatically takes care of:
     - Gradient averaging for multi-GPU training.
@@ -137,14 +137,14 @@ class Optimizer:
             self._report_mem_usage = False
             try:
                 with tf.name_scope(self.id + '_mem'), tf.device(device.name), tf.control_dependencies([loss]):
-                    deps.append(autosummary.autosummary(self.id + "/mem_usage_gb", tf.contrib.memory_stats.BytesInUse() / 2**30))
+                    deps.append(autosummary.autosummary(self.id + "/mem_usage_gb", "1"))
             except tf.errors.NotFoundError:
                 pass
 
         # Compute gradients.
         with tf.name_scope(self.id + "_grad"), tf.device(device.name), tf.control_dependencies(deps):
             loss = self.apply_loss_scaling(tf.cast(loss, tf.float32))
-            gate = tf.train.Optimizer.GATE_NONE  # disable gating to reduce memory usage
+            gate = tf.compat.v1.train.Optimizer.GATE_NONE  # disable gating to reduce memory usage
             grad_list = device.optimizer.compute_gradients(loss=loss, var_list=trainable_vars, gate_gradients=gate)
 
         # Register gradients.
@@ -337,8 +337,8 @@ class SimpleAdam:
     def variables(self):
         return self.all_state_vars
 
-    def compute_gradients(self, loss, var_list, gate_gradients=tf.train.Optimizer.GATE_NONE):
-        assert gate_gradients == tf.train.Optimizer.GATE_NONE
+    def compute_gradients(self, loss, var_list, gate_gradients=tf.compat.v1.train.Optimizer.GATE_NONE):
+        assert gate_gradients == tf.compat.v1.train.Optimizer.GATE_NONE
         return list(zip(tf.gradients(loss, var_list), var_list))
 
     def apply_gradients(self, grads_and_vars):
