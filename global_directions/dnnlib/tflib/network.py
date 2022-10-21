@@ -85,7 +85,7 @@ class Network:
         assert isinstance(build_module_src, str)
 
         # Choose TensorFlow name scope.
-        with tf.name_scope(None):
+        with tf.name_scope(""):
             scope = tf.get_default_graph().unique_name(name, mark_as_used=True)
 
         # Query current TensorFlow device.
@@ -728,7 +728,7 @@ class Network:
         if title is None:
             title = self.name
 
-        with tf.name_scope(None), tf.device(None), tf.control_dependencies(None):
+        with tf.name_scope(""), tf.device(None), tf.control_dependencies(None):
             for local_name, var in self._get_trainables().items():
                 if "/" in local_name:
                     p = local_name.split("/")

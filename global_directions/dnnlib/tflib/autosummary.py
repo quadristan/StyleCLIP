@@ -139,7 +139,7 @@ def finalize_autosummaries() -> None:
                 moments /= moments[0]
                 with tf.control_dependencies([moments]):  # read before resetting
                     reset_ops = [tf.assign(var, tf.zeros(3, dtype=_dtype)) for var in vars_list]
-                    with tf.name_scope(None), tf.control_dependencies(reset_ops):  # reset before reporting
+                    with tf.name_scope(""), tf.control_dependencies(reset_ops):  # reset before reporting
                         mean = moments[1]
                         std = tf.sqrt(moments[2] - tf.square(moments[1]))
                         tf.summary.scalar(name, mean)
