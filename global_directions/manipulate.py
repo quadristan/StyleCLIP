@@ -1,12 +1,14 @@
-
+import tensorflow.compat.v1 as tensorflow
+tf = tensorflow
+tf.disable_v2_behavior()
+tf.enable_eager_execution()
 
 import os
 import os.path
 import pickle
-import numpy as np
-import tensorflow as tf
+import numpy as np 
 from dnnlib import tflib
-from global_directions.utils.visualizer import HtmlPageVisualizer
+from utils.visualizer import HtmlPageVisualizer
 
 
 def Vis(bname,suffix,out,rownames=None,colnames=None):
@@ -109,9 +111,14 @@ class Manipulator():
         
         self.dlatents,self.s_names,self.mindexs,self.pindexs,self.code_mean,self.code_std=LoadData(self.img_path)
 
-        self.sess = sess or tf.InteractiveSession()
+        self.sess = sess or None
         init = tf.global_variables_initializer()
-        self.sess.run(init)
+        
+        if self.sess is not None:
+            self.sess.run(init)
+        else:
+            init()
+
         self.Gs=LoadModel(self.model_path,self.model_name)
         self.num_layers=len(self.dlatents)
         

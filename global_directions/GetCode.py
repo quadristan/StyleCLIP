@@ -132,7 +132,7 @@ def GetS(dataset_name,num_img):
     dlatents=np.load(tmp)[:num_img]
     
     with tf.compat.v1.Session() as sess:
-        init = tf.global_variables_initializer()
+        init = tf.compat.v1.global_variables_initializer()
         sess.run(init)
         
         Gs=LoadModel(dataset_name)
