@@ -25,7 +25,7 @@ Notes:
 
 from collections import OrderedDict
 import numpy as np
-import tensorflow as tf
+from .tfutil import tf
 from tensorboard import summary as summary_lib
 from tensorboard.plugins.custom_scalar import layout_pb2
 
@@ -99,7 +99,7 @@ def autosummary(name: str, value: TfExpressionEx, passthru: TfExpressionEx = Non
     if tfutil.is_tf_expression(value):
         with tf.name_scope("summary_" + name_id), tf.device(value.device):
             condition = tf.convert_to_tensor(condition, name='condition')
-            update_op = tf.cond(condition, lambda: tf.group(_create_var(name, value)), tf.compat.v1.no_op)
+            update_op = tf.cond(condition, lambda: tf.group(_create_var(name, value)), tf.no_op)
             with tf.control_dependencies([update_op]):
                 return tf.identity(value if passthru is None else passthru)
 
@@ -139,7 +139,7 @@ def finalize_autosummaries() -> None:
                 moments /= moments[0]
                 with tf.control_dependencies([moments]):  # read before resetting
                     reset_ops = [tf.assign(var, tf.zeros(3, dtype=_dtype)) for var in vars_list]
-                    with tf.name_scope(""), tf.control_dependencies(reset_ops):  # reset before reporting
+                    with tf.name_scope(None), tf.control_dependencies(reset_ops):  # reset before reporting
                         mean = moments[1]
                         std = tf.sqrt(moments[2] - tf.square(moments[1]))
                         tf.summary.scalar(name, mean)

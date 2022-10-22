@@ -15,7 +15,7 @@ import uuid
 import sys
 import copy
 import numpy as np
-import tensorflow as tf
+from .tfutil import tf
 
 from collections import OrderedDict
 from typing import Any, List, Tuple, Union, Callable
@@ -85,12 +85,12 @@ class Network:
         assert isinstance(build_module_src, str)
 
         # Choose TensorFlow name scope.
-        with tf.name_scope(""):
-            scope = tf.compat.v1.get_default_graph().unique_name(name, mark_as_used=True)
+        with tf.name_scope(None):
+            scope = tf.get_default_graph().unique_name(name, mark_as_used=True)
 
         # Query current TensorFlow device.
         with tfutil.absolute_name_scope(scope), tf.control_dependencies(None):
-            device = tf.compat.v1.no_op(name="_QueryDevice").device
+            device = tf.no_op(name="_QueryDevice").device
 
         # Immutable state.
         self._name                  = name
@@ -120,6 +120,7 @@ class Network:
         self._trainables            = None
         self._var_global_to_local   = None
         self._run_cache             = dict()
+        self.epochs = tf.Variable(0., dtype=tf.float32, name='epochs')
 
     def _init_graph(self) -> None:
         assert self._var_inits is not None
@@ -139,7 +140,7 @@ class Network:
         # Override scope and device, and ignore surrounding control dependencies.
         with tfutil.absolute_variable_scope(self.scope, reuse=False), tfutil.absolute_name_scope(self.scope), tf.device(self.device), tf.control_dependencies(None):
             assert tf.get_variable_scope().name == self.scope
-            assert tf.compat.v1.get_default_graph().get_name_scope() == self.scope
+            assert tf.get_default_graph().get_name_scope() == self.scope
 
             # Create input templates.
             self._input_templates = []
@@ -430,6 +431,11 @@ class Network:
         build_module_src = state["build_module_src"]
         build_func_name = state["build_func_name"]
 
+        # the workaround of tf1 to tf2 migration in network pickle file
+        #	replace 'import tensorflow as tf' in build_module_src
+        build_module_src =  build_module_src.replace('import tensorflow as tf', 'import tensorflow.compat.v1 as tf\ntf.disable_v2_behavior()')
+
+
         # Create temporary module from the imported source code.
         module_name = "_tflib_network_import_" + uuid.uuid4().hex
         module = types.ModuleType(module_name)
@@ -537,6 +543,12 @@ class Network:
                     ops.append(var.assign(new_value))
             return tf.group(*ops)
 
+    def update_epochs(self, epochs: TfExpressionEx = 0) -> tf.Operation:
+        """Construct a TensorFlow op that updates the epoch counter of this network."""
+        with tfutil.absolute_name_scope(self.scope + "/_Epochs"):
+            op = self.epochs.assign(epochs)
+            return op
+
     def run(self,
             *in_arrays: Tuple[Union[np.ndarray, None], ...],
             input_transform: dict = None,
@@ -626,7 +638,7 @@ class Network:
             mb_end = min(mb_begin + minibatch_size, num_items)
             mb_num = mb_end - mb_begin
             mb_in = [src[mb_begin : mb_end] if src is not None else np.zeros([mb_num] + shape[1:]) for src, shape in zip(in_arrays, self.input_shapes)]
-            mb_out = tf.compat.v1.get_default_session().run(out_expr, dict(zip(in_expr, mb_in)))
+            mb_out = tf.get_default_session().run(out_expr, dict(zip(in_expr, mb_in)))
 
             for dst, src in zip(out_arrays, mb_out):
                 dst[mb_begin: mb_end] = src
@@ -643,7 +655,7 @@ class Network:
         _ = self.output_templates  # ensure that the template graph has been created
         include_prefix = self.scope + "/"
         exclude_prefix = include_prefix + "_"
-        ops = tf.compat.v1.get_default_graph().get_operations()
+        ops = tf.get_default_graph().get_operations()
         ops = [op for op in ops if op.name.startswith(include_prefix)]
         ops = [op for op in ops if not op.name.startswith(exclude_prefix)]
         return ops
@@ -728,7 +740,7 @@ class Network:
         if title is None:
             title = self.name
 
-        with tf.name_scope(""), tf.device(None), tf.control_dependencies(None):
+        with tf.name_scope(None), tf.device(None), tf.control_dependencies(None):
             for local_name, var in self._get_trainables().items():
                 if "/" in local_name:
                     p = local_name.split("/")

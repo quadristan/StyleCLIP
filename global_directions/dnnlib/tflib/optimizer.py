@@ -8,9 +8,8 @@
 
 """Helper wrapper for a Tensorflow optimizer."""
 
-import platform
 import numpy as np
-import tensorflow as tf
+from .tfutil import tf
 
 from collections import OrderedDict
 from typing import List, Union
@@ -21,12 +20,20 @@ from .. import util
 
 from .tfutil import TfExpression, TfExpressionEx
 
+# try:
+#     # TensorFlow 1.13
+#     from tensorflow.python.ops import nccl_ops
+# except:
+#     # Older TensorFlow versions
+#     # import tensorflow.contrib.nccl as nccl_ops
+
+
 _collective_ops_warning_printed = False
 _collective_ops_group_key       = 831766147
 _collective_ops_instance_key    = 436340067
 
 class Optimizer:
-    """A Wrapper for tf.compat.v1.train.Optimizer.
+    """A Wrapper for tf.train.Optimizer.
 
     Automatically takes care of:
     - Gradient averaging for multi-GPU training.
@@ -39,7 +46,7 @@ class Optimizer:
 
     def __init__(self,
         name:                   str             = "Train",                  # Name string that will appear in TensorFlow graph.
-        tf_optimizer:           str             = "tf.train.AdamOptimizer", # Underlying optimizer class.
+        tf_optimizer:           str             = "tf.compat.v1.train.AdamOptimizer", # Underlying optimizer class.
         learning_rate:          TfExpressionEx  = 0.001,                    # Learning rate. Can vary over time.
         minibatch_multiplier:   TfExpressionEx  = None,                     # Treat N consecutive minibatches as one by accumulating gradients.
         share:                  "Optimizer"     = None,                     # Share internal state with a previously created optimizer?
@@ -55,7 +62,7 @@ class Optimizer:
         self.learning_rate          = learning_rate
         self.minibatch_multiplier   = minibatch_multiplier
         self.id                     = self.name.replace("/", ".")
-        self.scope                  = tf.compat.v1.get_default_graph().unique_name(self.id)
+        self.scope                  = tf.get_default_graph().unique_name(self.id)
         self.optimizer_class        = util.get_obj_by_name(tf_optimizer)
         self.optimizer_kwargs       = dict(kwargs)
         self.use_loss_scaling       = use_loss_scaling
@@ -137,14 +144,14 @@ class Optimizer:
             self._report_mem_usage = False
             try:
                 with tf.name_scope(self.id + '_mem'), tf.device(device.name), tf.control_dependencies([loss]):
-                    deps.append(autosummary.autosummary(self.id + "/mem_usage_gb", "1"))
+                    deps.append(autosummary.autosummary(self.id + "/mem_usage_gb", tf.contrib.memory_stats.BytesInUse() / 2**30))
             except tf.errors.NotFoundError:
                 pass
 
         # Compute gradients.
         with tf.name_scope(self.id + "_grad"), tf.device(device.name), tf.control_dependencies(deps):
             loss = self.apply_loss_scaling(tf.cast(loss, tf.float32))
-            gate = tf.compat.v1.train.Optimizer.GATE_NONE  # disable gating to reduce memory usage
+            gate = tf.train.Optimizer.GATE_NONE  # disable gating to reduce memory usage
             grad_list = device.optimizer.compute_gradients(loss=loss, var_list=trainable_vars, gate_gradients=gate)
 
         # Register gradients.
@@ -163,7 +170,7 @@ class Optimizer:
         # Check for no-op.
         if allow_no_op and len(self._devices) == 0:
             with tfutil.absolute_name_scope(self.scope):
-                return tf.compat.v1.no_op(name='TrainingOp')
+                return tf.no_op(name='TrainingOp')
 
         # Clean up gradients.
         for device_idx, device in enumerate(self._devices.values()):
@@ -236,14 +243,14 @@ class Optimizer:
                 # No overflow => apply gradients.
                 all_ok = tf.reduce_all(tf.stack([acc_ok] + [tf.reduce_all(tf.is_finite(g)) for g in device.grad_acc.values()]))
                 apply_op = lambda: device.optimizer.apply_gradients([(tf.cast(grad, var.dtype), var) for var, grad in device.grad_acc.items()])
-                all_ops.append(tf.cond(all_ok, apply_op, tf.compat.v1.no_op))
+                all_ops.append(tf.cond(all_ok, apply_op, tf.no_op))
 
                 # Adjust loss scaling.
                 if self.use_loss_scaling:
                     ls_inc_op = lambda: tf.assign_add(device.loss_scaling_var, self.loss_scaling_inc)
                     ls_dec_op = lambda: tf.assign_sub(device.loss_scaling_var, self.loss_scaling_dec)
                     ls_update_op = lambda: tf.group(tf.cond(all_ok, ls_inc_op, ls_dec_op))
-                    all_ops.append(tf.cond(acc_ok, ls_update_op, tf.compat.v1.no_op))
+                    all_ops.append(tf.cond(acc_ok, ls_update_op, tf.no_op))
 
                 # Last device => report statistics.
                 if device_idx == len(self._devices) - 1:
@@ -337,8 +344,8 @@ class SimpleAdam:
     def variables(self):
         return self.all_state_vars
 
-    def compute_gradients(self, loss, var_list, gate_gradients=tf.compat.v1.train.Optimizer.GATE_NONE):
-        assert gate_gradients == tf.compat.v1.train.Optimizer.GATE_NONE
+    def compute_gradients(self, loss, var_list, gate_gradients=tf.train.Optimizer.GATE_NONE):
+        assert gate_gradients == tf.train.Optimizer.GATE_NONE
         return list(zip(tf.gradients(loss, var_list), var_list))
 
     def apply_gradients(self, grads_and_vars):
